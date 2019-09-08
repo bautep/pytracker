@@ -25,6 +25,7 @@ import time
 import urllib
 import urllib2
 import json
+import pprint 
 
 DEFAULT_BASE_API_URL = 'https://www.pivotaltracker.com/services/v5/'
 
@@ -35,6 +36,10 @@ class Resource(object):
 
   def __str__(self):
     return "%s(%r)" % (self.kind.upper(), self.__dict__)
+
+  def pprint(self):
+     print self.kind.upper()
+     pprint.pprint(self.__dict__)
 
   def GetDataFromIndex(self, data, index):
     """Retrieve value associated with the index, if any.
@@ -212,6 +217,19 @@ class Tracker(object):
 
     return lst
 
+  def GetProjectActivity(self, query=None):
+    if query:
+      data = self._ApiWrapper('activity?%s' % ( query))
+    else:
+      data = self._ApiWrapper('activity' )
+
+    activities = json.loads(data)
+    lst = []
+    for activity in activities:
+      lst.append(Activity(activity))
+
+    return lst
+
   def AddComment(self, story_id, comment):
     """Add a comment to a Story.
 
@@ -274,7 +292,14 @@ class Story(Resource):
       'owner_ids', 'labels', 'created_at', 'updated_at', 'url', 'kind']
     super(Story, self).__init__(attributes, data)
 
+    # save human readable form of timestamps, for the few people who don't read unix times easily
+    self.accepted_at_raw = self.accepted_at
+    self.created_at_raw = self.created_at
+    self.updated_at_raw = self.updated_at
+    self.deadline_raw = self.deadline
+
     # Special handling for attributes to parse datetime
+    self.accepted_at = self.ParseDatetimeIntoSecs(self.accepted_at)
     self.created_at = self.ParseDatetimeIntoSecs(self.created_at)
     self.updated_at = self.ParseDatetimeIntoSecs(self.updated_at)
     self.deadline =self.ParseDatetimeIntoSecs(self.deadline)
@@ -331,6 +356,8 @@ class Comment(Resource):
       'google_attachment_ids', 'commit_identifier', 'commit_type', 'kind']
     super(Comment, self).__init__(attributes, data)
 
+    self.created_at_raw = self.created_at
+    self.updated_at_raw = self.updated_at
     # Special handling for attributes to parse datetime
     self.created_at = self.ParseDatetimeIntoSecs(self.created_at)
     self.updated_at = self.ParseDatetimeIntoSecs(self.updated_at)
@@ -358,5 +385,6 @@ class Activity(Resource):
       'occurred_at']
     super(Activity, self).__init__(attributes, data)
 
+    self.occurred_at_raw = self.occurred_at
     # Special handling for attributes to parse datetime
     self.occurred_at = self.ParseDatetimeIntoSecs(self.occurred_at)
